@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}Score Breakdown{% endblock %}
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header"><h2>Credit Score Breakdown</h2></div>
+            <div class="card-body">
+                <h3>Your Score: {{ current_score }}</h3>
+                <ul class="list-group mb-3">
+                    <li class="list-group-item">Base Score: {{ breakdown.base_score }}</li>
+                    <li class="list-group-item">Payment History (35%): +{{ breakdown.payment_history }}</li>
+                    <li class="list-group-item">Credit Utilization (30%): +{{ breakdown.credit_utilization }}</li>
+                    <li class="list-group-item">Account Age (15%): +{{ breakdown.account_age }} ({{ account_age_days }} days)</li>
+                    <li class="list-group-item">Social Trust (10%): +{{ breakdown.social_trust }} ({{ vouch_count }} vouches)</li>
+                    <li class="list-group-item">Savings (5%): +{{ breakdown.savings }}</li>
+                    <li class="list-group-item">Verification (5%): +{{ breakdown.verification }}</li>
+                </ul>
+                <h4>Tips to Improve Your Score</h4>
+                <ul>
+                    {% for tip in tips %}
+                        <li>{{ tip }}</li>
+                    {% empty %}
+                        <li>Keep up the good work!</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block title %}Make Payment{% endblock %}
+{% block content %}
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><h2>Make a Payment</h2></div>
+            <div class="card-body">
+                <p><strong>Loan Amount:</strong> MWK {{ loan.amount|floatformat:2 }}</p>
+                <p><strong>Remaining:</strong> MWK {{ remaining|floatformat:2 }}</p>
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="amount" class="form-label">Payment Amount (MWK)</label>
+                        <input type="number" class="form-control" id="amount" name="amount" step="0.01" min="0.01" max="{{ remaining }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="payment_method" class="form-label">Payment Method</label>
+                        <select class="form-control" id="payment_method" name="payment_method" required>
+                            <option value="airtel_money">Airtel Money</option>
+                            <option value="tnm_mpamba">TNM Mpamba</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                            <option value="cash">Cash</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="transaction_reference" class="form-label">Transaction Reference</label>
+                        <input type="text" class="form-control" id="transaction_reference" name="transaction_reference" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Submit Payment</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

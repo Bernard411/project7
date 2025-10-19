@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header"><h2>Welcome, {{ profile.user.username }}</h2></div>
+            <div class="card-body">
+                <h3>Your Credit Score: <span class="text-{{ rating_color }}">{{ current_score }} ({{ rating }})</span></h3>
+                <p><strong>AI Default Risk:</strong> {{ default_risk|floatformat:1 }}%</p>
+                <p>Maximum Loan Amount: MWK {{ max_loan|floatformat:0 }}</p>
+                <p>Interest Rate: {{ interest_rate }}%</p>
+                <p>Total Savings: MWK {{ total_savings|floatformat:2 }}</p>
+                <p>Vouches Received: {{ vouches_received }}</p>
+                {% if active_loan %}
+                    <p>Active Loan: MWK {{ active_loan.amount|floatformat:2 }} (Due: {{ active_loan.due_date }})</p>
+                    <a href="{% url 'loan_detail' active_loan.id %}" class="btn btn-info">View Loan</a>
+                {% else %}
+                    <p>No active loans.</p>
+                    <a href="{% url 'apply_loan' %}" class="btn btn-success">Apply for a Loan</a>
+                {% endif %}
+                <h4>Recent Loans</h4>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Amount</th>
+                            <th>Status</th>
+                            <th>Applied</th>
+                            <th>Due Date</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for loan in loans %}
+                            <tr>
+                                <td>MWK {{ loan.amount|floatformat:2 }}</td>
+                                <td>{{ loan.status|title }}</td>
+                                <td>{{ loan.applied_at|date:"Y-m-d" }}</td>
+                                <td>{{ loan.due_date|date:"Y-m-d" }}</td>
+                                <td><a href="{% url 'loan_detail' loan.id %}" class="btn btn-sm btn-primary">Details</a></td>
+                            </tr>
+                        {% empty %}
+                            <tr><td colspan="5">No loans yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

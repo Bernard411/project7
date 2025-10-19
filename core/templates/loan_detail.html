@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block title %}Loan Details{% endblock %}
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header"><h2>Loan Details</h2></div>
+            <div class="card-body">
+                <p><strong>Amount:</strong> MWK {{ loan.amount|floatformat:2 }}</p>
+                <p><strong>Status:</strong> {{ loan.status|title }}</p>
+                <p><strong>Interest Rate:</strong> {{ loan.interest_rate }}%</p>
+                <p><strong>Applied:</strong> {{ loan.applied_at|date:"Y-m-d" }}</p>
+                <p><strong>Due Date:</strong> {{ loan.due_date|date:"Y-m-d" }}</p>
+                <p><strong>Total Due:</strong> MWK {{ loan.total_amount_due|floatformat:2 }}</p>
+                <p><strong>Amount Paid:</strong> MWK {{ loan.amount_paid|floatformat:2 }}</p>
+                <p><strong>Remaining:</strong> MWK {{ remaining|floatformat:2 }}</p>
+                {% if is_overdue %}
+                    <p class="text-danger"><strong>Overdue by {{ days_overdue }} days</strong></p>
+                {% endif %}
+                <a href="{% url 'make_payment' loan.id %}" class="btn btn-primary">Make Payment</a>
+                <h4>Payment History</h4>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Amount</th>
+                            <th>Date</th>
+                            <th>Method</th>
+                            <th>On Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payment in payments %}
+                            <tr>
+                                <td>MWK {{ payment.amount|floatformat:2 }}</td>
+                                <td>{{ payment.payment_date|date:"Y-m-d" }}</td>
+                                <td>{{ payment.payment_method|title }}</td>
+                                <td>{{ payment.was_on_time|yesno:"Yes,No" }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr><td colspan="4">No payments yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

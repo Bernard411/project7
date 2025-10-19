@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}Apply for Loan{% endblock %}
+{% block content %}
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><h2>Apply for a Loan</h2></div>
+            <div class="card-body">
+                <p><strong>Your Credit Score:</strong> {{ current_score }}</p>
+                <p><strong>Maximum Loan Amount:</strong> MWK {{ max_loan|floatformat:0 }}</p>
+                <p><strong>AI Default Risk (Sample):</strong> {{ default_risk|floatformat:1 }}%</p>
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="amount" class="form-label">Loan Amount (MWK)</label>
+                        <input type="number" class="form-control" id="amount" name="amount" step="0.01" min="5000" max="{{ max_loan }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="duration" class="form-label">Duration (Days)</label>
+                        <select class="form-control" id="duration" name="duration" required>
+                            <option value="30">30 Days</option>
+                            <option value="60">60 Days</option>
+                            <option value="90">90 Days</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Apply</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block title %}Verify Mobile Money{% endblock %}
+{% block content %}
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><h2>Verify Mobile Money Account</h2></div>
+            <div class="card-body">
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="provider" class="form-label">Provider</label>
+                        <select class="form-control" id="provider" name="provider" required>
+                            <option value="airtel_money">Airtel Money</option>
+                            <option value="tnm_mpamba">TNM Mpamba</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="phone_number" class="form-label">Phone Number</label>
+                        <input type="text" class="form-control" id="phone_number" name="phone_number" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Verify</button>
+                </form>
+                <h4>Linked Accounts</h4>
+                <ul class="list-group">
+                    {% for account in accounts %}
+                        <li class="list-group-item">{{ account.provider|title }} - {{ account.phone_number }} {% if account.is_verified %}(Verified){% endif %}</li>
+                    {% empty %}
+                        <li class="list-group-item">No linked accounts.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
