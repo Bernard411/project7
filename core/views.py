@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from django.utils import timezone
+from .loan_ml_predictor import LoanMLPredictor
 from datetime import timedelta
 from decimal import Decimal
 
@@ -53,6 +54,9 @@ def superuser_dashboard(request):
     today_loans = loans.filter(applied_at__gte=today_start).count()
     today_payments = payments.filter(payment_date__gte=today_start).count()
     today_activity_count = today_loans + today_payments
+    ml_predictor = LoanMLPredictor()
+    user_profile = request.user.userprofile
+    ml_result = ml_predictor.predict_user(user_profile)
     
     # Revenue calculations
     total_revenue = payments.aggregate(Sum('amount'))['amount__sum'] or 0
@@ -67,6 +71,20 @@ def superuser_dashboard(request):
     
     # Vouch analytics
     active_vouches_count = vouches.filter(is_active=True).count()
+
+    # ML model stats: show distribution of ML predictions for all users
+    ml_predictor = LoanMLPredictor()
+    ml_stats = {'good': 0, 'risky': 0, 'probas': []}
+    for u in users:
+        try:
+            ml_result = ml_predictor.predict_user(u)
+            if ml_result['prediction'] == 1:
+                ml_stats['good'] += 1
+            else:
+                ml_stats['risky'] += 1
+            ml_stats['probas'].append(ml_result['probability'])
+        except Exception:
+            pass
 
     context = {
         'users': users,
@@ -85,6 +103,9 @@ def superuser_dashboard(request):
         'default_rate': round(default_rate, 1),
         'active_vouches_count': active_vouches_count,
         'current_date': timezone.now().strftime("%B %d, %Y"),
+        'ml_good_count': ml_stats['good'],
+        'ml_risky_count': ml_stats['risky'],
+        'ml_avg_proba': round(sum(ml_stats['probas'])/len(ml_stats['probas']), 2) if ml_stats['probas'] else 0,
     }
     return render(request, 'superuser_dashboard.html', context)
 

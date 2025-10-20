@@ -23,8 +23,48 @@
             </div>
         </div>
 
-        <!-- Analytics Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <!-- Analytics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="card bg-white p-6">
+                <div class="flex items-center">
+                    <div class="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center mr-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">ML: Good Users</p>
+                        <p class="text-2xl font-bold text-gray-900">{{ ml_good_count }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="card bg-white p-6">
+                <div class="flex items-center">
+                    <div class="h-12 w-12 bg-red-100 rounded-lg flex items-center justify-center mr-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">ML: Risky Users</p>
+                        <p class="text-2xl font-bold text-gray-900">{{ ml_risky_count }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="card bg-white p-6">
+                <div class="flex items-center">
+                    <div class="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none" />
+                            <text x="12" y="16" text-anchor="middle" font-size="10" fill="currentColor">%</text>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">ML: Avg. Good Probability</p>
+                        <p class="text-2xl font-bold text-gray-900">{{ ml_avg_proba|floatformat:2 }}</p>
+                    </div>
+                </div>
+            </div>
             <div class="card bg-white p-6">
                 <div class="flex items-center">
                     <div class="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center mr-4">

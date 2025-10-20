@@ -1,0 +1,2 @@
+age,monthly_income,employment_status,num_loans,num_defaults,num_paid_loans,on_time_payment_rate,num_vouches,num_savings,total_saved,is_verified,num_mobile_accounts,loan_amount,loan_duration_days,target
+-1,222222.00,0,1,0,1,1.0,0,1,10000,0,0,5000.00,30,1
