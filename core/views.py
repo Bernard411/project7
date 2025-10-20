@@ -1,3 +1,94 @@
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth import authenticate, login, logout
+from django.contrib import messages
+from django.utils import timezone
+from datetime import timedelta
+from decimal import Decimal
+
+from .models import (
+    UserProfile, MicroLoan, LoanPayment, MobileMoneyAccount,
+    SocialVouch, SavingsDeposit, CreditScoreCalculator, LoanApprovalEngine
+)
+
+# ============================================
+# LOGIN VIEW
+# ============================================
+
+# ============================================
+# SUPERUSER DASHBOARD VIEW
+# ============================================
+from django.contrib.admin.views.decorators import staff_member_required
+from django.utils import timezone
+from datetime import timedelta
+from django.db.models import Sum, Avg, Count, Q
+
+@staff_member_required
+def superuser_dashboard(request):
+    if not request.user.is_superuser:
+        return redirect('dashboard')
+
+    users = UserProfile.objects.select_related('user').all()
+    loans = MicroLoan.objects.select_related('user').all().order_by('-applied_at')
+    payments = LoanPayment.objects.select_related('loan', 'loan__user').all().order_by('-payment_date')
+    vouches = SocialVouch.objects.select_related('voucher', 'vouchee').all().order_by('-created_at')
+    savings = SavingsDeposit.objects.select_related('user').all().order_by('-deposit_date')
+    mobile_accounts = MobileMoneyAccount.objects.select_related('user').all().order_by('-created_at')
+
+    # Analytics calculations
+    today = timezone.now().date()
+    
+    # Loan analytics
+    active_loans_count = loans.filter(status='active').count()
+    total_loan_amount = loans.filter(status='active').aggregate(Sum('amount'))['amount__sum'] or 0
+    
+    # Mobile money analytics
+    verified_mobile_count = mobile_accounts.filter(is_verified=True).count()
+    total_mobile_accounts = mobile_accounts.count()
+    verification_rate = (verified_mobile_count / total_mobile_accounts * 100) if total_mobile_accounts > 0 else 0
+    
+    # Today's activity
+    today_start = timezone.make_aware(timezone.datetime.combine(today, timezone.datetime.min.time()))
+    today_loans = loans.filter(applied_at__gte=today_start).count()
+    today_payments = payments.filter(payment_date__gte=today_start).count()
+    today_activity_count = today_loans + today_payments
+    
+    # Revenue calculations
+    total_revenue = payments.aggregate(Sum('amount'))['amount__sum'] or 0
+    
+    # Credit score analytics
+    average_credit_score = users.aggregate(Avg('current_credit_score'))['current_credit_score__avg'] or 0
+    
+    # Default rate
+    total_loans_count = loans.count()
+    defaulted_loans_count = loans.filter(status='defaulted').count()
+    default_rate = (defaulted_loans_count / total_loans_count * 100) if total_loans_count > 0 else 0
+    
+    # Vouch analytics
+    active_vouches_count = vouches.filter(is_active=True).count()
+
+    context = {
+        'users': users,
+        'loans': loans,
+        'payments': payments,
+        'vouches': vouches,
+        'savings': savings,
+        'mobile_accounts': mobile_accounts,
+        'active_loans_count': active_loans_count,
+        'total_loan_amount': total_loan_amount,
+        'verified_mobile_count': verified_mobile_count,
+        'verification_rate': round(verification_rate, 1),
+        'today_activity_count': today_activity_count,
+        'total_revenue': total_revenue,
+        'average_credit_score': round(average_credit_score, 0),
+        'default_rate': round(default_rate, 1),
+        'active_vouches_count': active_vouches_count,
+        'current_date': timezone.now().strftime("%B %d, %Y"),
+    }
+    return render(request, 'superuser_dashboard.html', context)
+
+
 from .forms import RegistrationForm
 # ============================================
 # REGISTRATION VIEW
@@ -26,22 +117,6 @@ def registration_view(request):
         form = RegistrationForm()
 
     return render(request, 'registration.html', {'form': form})
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth import authenticate, login, logout
-from django.contrib import messages
-from django.utils import timezone
-from datetime import timedelta
-from decimal import Decimal
-
-from .models import (
-    UserProfile, MicroLoan, LoanPayment, MobileMoneyAccount,
-    SocialVouch, SavingsDeposit, CreditScoreCalculator, LoanApprovalEngine
-)
-
-# ============================================
-# LOGIN VIEW
-# ============================================
 
 def login_view(request):
     if request.user.is_authenticated:
