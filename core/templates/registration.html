@@ -1,0 +1,339 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8 px-4">
+    <div class="max-w-2xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <div class="flex items-center justify-center space-x-3 mb-4">
+                <div class="h-12 w-12 bg-red-600 rounded-xl flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
+                    </svg>
+                </div>
+                <h1 class="text-3xl font-bold text-gray-900">Join CashChangu</h1>
+            </div>
+            <p class="text-gray-600">Create your account in a few simple steps</p>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="mb-8">
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-sm font-medium text-gray-700">Step <span id="currentStep">1</span> of 4</span>
+                <span class="text-sm font-medium text-gray-700" id="progressText">25% Complete</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2">
+                <div id="progressBar" class="bg-red-600 h-2 rounded-full transition-all duration-300" style="width: 25%"></div>
+            </div>
+        </div>
+
+        <!-- Registration Form -->
+        <div class="card bg-white p-6 mb-6">
+            {% if form.non_field_errors %}
+                <div class="mb-4 p-3 bg-red-100 text-red-700 rounded">
+                    {% for error in form.non_field_errors %}
+                        <div>{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            <form method="post" action="" id="registrationForm" class="space-y-6">
+                {% csrf_token %}
+                
+                <!-- Step 1: Account Information -->
+                <div id="step1" class="form-step">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b">Account Information</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="username" class="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                            <input type="text" id="username" name="username" required 
+                                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition duration-200"
+                                   placeholder="Choose a username">
+                            {% if form.username.errors %}
+                                <p class="text-red-600 text-sm mt-1">{{ form.username.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                            <input type="email" id="email" name="email" required 
+                                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition duration-200"
+                                   placeholder="your@email.com">
+                            {% if form.email.errors %}
+                                <p class="text-red-600 text-sm mt-1">{{ form.email.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="password1" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                                <input type="password" id="password1" name="password1" required 
+                                       class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition duration-200"
+                                       placeholder="Create password">
+                                {% if form.password1.errors %}
+                                    <p class="text-red-600 text-sm mt-1">{{ form.password1.errors.0 }}</p>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <label for="password2" class="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
+                                <input type="password" id="password2" name="password2" required 
+                                       class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition duration-200"
+                                       placeholder="Confirm password">
+                                {% if form.password2.errors %}
+                                    <p class="text-red-600 text-sm mt-1">{{ form.password2.errors.0 }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Personal Information -->
+                <div id="step2" class="form-step hidden">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b">Personal Information</h3>
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="phone_number" class="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                                <input type="text" id="phone_number" name="phone_number" required 
+                                       class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition duration-200"
+                                       placeholder="+265 ...">
+                                {% if form.phone_number.errors %}
+                                    <p class="text-red-600 text-sm mt-1">{{ form.phone_number.errors.0 }}</p>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <label for="national_id" class="block text-sm font-medium text-gray-700 mb-2">National ID</label>
+                                <input type="text" id="national_id" name="national_id" required 
+                                       class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition duration-200"
+                                       placeholder="National ID number">
+                                {% if form.national_id.errors %}
+                                    <p class="text-red-600 text-sm mt-1">{{ form.national_id.errors.0 }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div>
+                            <label for="date_of_birth" class="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
+                            <input type="date" id="date_of_birth" name="date_of_birth" required 
+                                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition duration-200">
+                            {% if form.date_of_birth.errors %}
+                                <p class="text-red-600 text-sm mt-1">{{ form.date_of_birth.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: Location Information -->
+                <div id="step3" class="form-step hidden">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b">Location Information</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="district" class="block text-sm font-medium text-gray-700 mb-2">District</label>
+                            <input type="text" id="district" name="district" required 
+                                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition duration-200"
+                                   placeholder="Your district">
+                            {% if form.district.errors %}
+                                <p class="text-red-600 text-sm mt-1">{{ form.district.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <label for="traditional_authority" class="block text-sm font-medium text-gray-700 mb-2">Traditional Authority</label>
+                            <input type="text" id="traditional_authority" name="traditional_authority" required 
+                                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition duration-200"
+                                   placeholder="Traditional authority">
+                            {% if form.traditional_authority.errors %}
+                                <p class="text-red-600 text-sm mt-1">{{ form.traditional_authority.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <label for="village" class="block text-sm font-medium text-gray-700 mb-2">Village</label>
+                            <input type="text" id="village" name="village" required 
+                                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition duration-200"
+                                   placeholder="Your village">
+                            {% if form.village.errors %}
+                                <p class="text-red-600 text-sm mt-1">{{ form.village.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4: Employment Information -->
+                <div id="step4" class="form-step hidden">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b">Employment Information</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="employment_status" class="block text-sm font-medium text-gray-700 mb-2">Employment Status</label>
+                            <select id="employment_status" name="employment_status" required 
+                                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition duration-200">
+                                <option value="">Select employment status</option>
+                                <option value="employed">Employed</option>
+                                <option value="self_employed">Self Employed</option>
+                                <option value="student">Student</option>
+                                <option value="unemployed">Unemployed</option>
+                            </select>
+                            {% if form.employment_status.errors %}
+                                <p class="text-red-600 text-sm mt-1">{{ form.employment_status.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <label for="monthly_income" class="block text-sm font-medium text-gray-700 mb-2">Monthly Income (MWK)</label>
+                            <input type="number" id="monthly_income" name="monthly_income" min="0" step="0.01"
+                                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition duration-200"
+                                   placeholder="0.00">
+                            {% if form.monthly_income.errors %}
+                                <p class="text-red-600 text-sm mt-1">{{ form.monthly_income.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation Buttons -->
+                <div class="flex justify-between pt-6 border-t">
+                    <button type="button" id="prevBtn" class="bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-400 transition duration-200 hidden">
+                        Previous
+                    </button>
+                    <button type="button" id="nextBtn" class="bg-red-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-red-700 transition duration-200 ml-auto">
+                        Next
+                    </button>
+                    <button type="submit" id="submitBtn" class="bg-green-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-700 transition duration-200 hidden">
+                        Create Account
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white p-8 rounded-lg shadow-lg text-center max-w-sm mx-4">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Creating Your Account</h3>
+                <p class="text-gray-600">Please wait while we set up your account...</p>
+            </div>
+        </div>
+
+        <!-- Login Link -->
+        <div class="text-center">
+            <p class="text-gray-600">
+                Already have an account? 
+                <a href="{% url 'login' %}" class="text-red-600 font-semibold hover:text-red-700 transition duration-200">
+                    Sign in here
+                </a>
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        let currentStep = 1;
+        const totalSteps = 4;
+        const form = document.getElementById('registrationForm');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+
+        function updateProgress() {
+            const progress = (currentStep / totalSteps) * 100;
+            document.getElementById('progressBar').style.width = `${progress}%`;
+            document.getElementById('currentStep').textContent = currentStep;
+            document.getElementById('progressText').textContent = `${Math.round(progress)}% Complete`;
+            
+            // Update buttons
+            document.getElementById('prevBtn').classList.toggle('hidden', currentStep === 1);
+            document.getElementById('nextBtn').classList.toggle('hidden', currentStep === totalSteps);
+            document.getElementById('submitBtn').classList.toggle('hidden', currentStep !== totalSteps);
+        }
+
+        function showStep(step) {
+            // Hide all steps
+            document.querySelectorAll('.form-step').forEach(stepEl => {
+                stepEl.classList.add('hidden');
+            });
+            
+            // Show current step
+            document.getElementById(`step${step}`).classList.remove('hidden');
+            
+            currentStep = step;
+            updateProgress();
+        }
+
+        function validateStep(step) {
+            const stepEl = document.getElementById(`step${step}`);
+            const inputs = stepEl.querySelectorAll('input[required], select[required]');
+            
+            for (let input of inputs) {
+                if (!input.value.trim()) {
+                    input.focus();
+                    // Add error styling
+                    input.classList.add('border-red-500');
+                    setTimeout(() => input.classList.remove('border-red-500'), 2000);
+                    return false;
+                }
+                
+                // Special validation for passwords
+                if (input.id === 'password2' && input.value !== document.getElementById('password1').value) {
+                    alert('Passwords do not match!');
+                    input.focus();
+                    input.classList.add('border-red-500');
+                    setTimeout(() => input.classList.remove('border-red-500'), 2000);
+                    return false;
+                }
+                
+                // Email validation
+                if (input.type === 'email' && !isValidEmail(input.value)) {
+                    alert('Please enter a valid email address!');
+                    input.focus();
+                    input.classList.add('border-red-500');
+                    setTimeout(() => input.classList.remove('border-red-500'), 2000);
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function isValidEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        }
+
+        // Next button click
+        document.getElementById('nextBtn').addEventListener('click', function() {
+            if (validateStep(currentStep)) {
+                showStep(currentStep + 1);
+            }
+        });
+
+        // Previous button click
+        document.getElementById('prevBtn').addEventListener('click', function() {
+            showStep(currentStep - 1);
+        });
+
+        // Form submission
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (validateStep(currentStep)) {
+                // Show loading overlay
+                loadingOverlay.classList.remove('hidden');
+                
+                // Simulate form submission (remove this in production)
+                setTimeout(() => {
+                    // In production, this would be the actual form submission
+                    form.submit();
+                }, 2000);
+            }
+        });
+
+        // Initialize first step
+        showStep(1);
+    });
+</script>
+
+<style>
+    .form-step {
+        transition: opacity 0.3s ease-in-out;
+    }
+    .hidden {
+        display: none;
+    }
+    .card {
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        border-radius: 12px;
+    }
+</style>
+{% endblock %}

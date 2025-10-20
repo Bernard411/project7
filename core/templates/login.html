@@ -3,9 +3,49 @@
 {% block content %}
 <div class="min-h-screen flex items-center justify-center px-4 -mt-20">
     <div class="max-w-md w-full">
-        <div class="card bg-white p-8">
+        <!-- Splash Screen 1 -->
+        <div id="splash1" class="card bg-white p-8 text-center transition-opacity duration-500">
+            <div class="mb-6">
+                <div class="h-20 w-20 bg-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">Build Your Credit</h2>
+                <p class="text-gray-600">Start with small loans and grow your credit score with every responsible payment</p>
+            </div>
+            <div class="flex justify-center space-x-1 mt-8">
+                <div class="h-2 w-2 bg-red-600 rounded-full"></div>
+                <div class="h-2 w-2 bg-gray-300 rounded-full"></div>
+            </div>
+        </div>
+
+        <!-- Splash Screen 2 -->
+        <div id="splash2" class="card bg-white p-8 text-center transition-opacity duration-500 hidden">
+            <div class="mb-6">
+                <div class="h-20 w-20 bg-green-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">Community Trust</h2>
+                <p class="text-gray-600">Get vouched by friends and family to boost your creditworthiness and access better loan terms</p>
+            </div>
+            <div class="flex justify-center space-x-1 mt-8">
+                <div class="h-2 w-2 bg-gray-300 rounded-full"></div>
+                <div class="h-2 w-2 bg-red-600 rounded-full"></div>
+            </div>
+        </div>
+
+        <!-- Login Form -->
+        <div id="loginForm" class="card bg-white p-8 hidden">
             <div class="text-center mb-8">
-                <h2 class="text-2xl font-bold text-gray-800">Welcome Back</h2>
+                <div class="h-16 w-16 bg-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800">Welcome to CashChangu</h2>
                 <p class="text-gray-600 mt-2">Sign in to your account</p>
             </div>
             
@@ -14,20 +54,88 @@
                 <div class="mb-4">
                     <label for="username" class="block text-gray-700 text-sm font-medium mb-2">Username</label>
                     <input type="text" id="username" name="username" required 
-                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition duration-200"
+                           placeholder="Enter your username">
                 </div>
                 
                 <div class="mb-6">
                     <label for="password" class="block text-gray-700 text-sm font-medium mb-2">Password</label>
                     <input type="password" id="password" name="password" required 
-                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition duration-200"
+                           placeholder="Enter your password">
                 </div>
-                
+              
                 <button type="submit" class="w-full bg-red-600 text-white py-3 rounded-lg font-medium hover:bg-red-700 transition duration-200">
                     Sign In
                 </button>
+                
             </form>
+
+            <div class="text-center mt-6">
+                <p class="text-gray-600 text-sm">Don't have an account? <a href="{% url 'register' %}" class="text-red-600 font-medium hover:text-red-700">Sign up</a></p>
+            </div>
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        let currentScreen = 1;
+        const totalScreens = 2;
+        const splash1 = document.getElementById('splash1');
+        const splash2 = document.getElementById('splash2');
+        const loginForm = document.getElementById('loginForm');
+
+        function showScreen(screenNumber) {
+            // Hide all screens
+            splash1.classList.add('hidden');
+            splash2.classList.add('hidden');
+            loginForm.classList.add('hidden');
+
+            // Show the current screen
+            if (screenNumber === 1) {
+                splash1.classList.remove('hidden');
+            } else if (screenNumber === 2) {
+                splash2.classList.remove('hidden');
+            } else {
+                loginForm.classList.remove('hidden');
+            }
+        }
+
+        function nextScreen() {
+            currentScreen++;
+            if (currentScreen <= totalScreens + 1) { // +1 for login form
+                showScreen(currentScreen);
+                
+                // Auto-advance to next screen or stop at login form
+                if (currentScreen <= totalScreens) {
+                    setTimeout(nextScreen, 3000); // 3 seconds per splash screen
+                }
+            }
+        }
+
+        // Start the auto-advance sequence
+        setTimeout(nextScreen, 3000); // Show first splash for 3 seconds
+
+        // Also allow manual skip by clicking on splash screens
+        splash1.addEventListener('click', function() {
+            clearTimeout(); // Clear any existing timeouts
+            showScreen(3); // Show login form immediately
+        });
+
+        splash2.addEventListener('click', function() {
+            clearTimeout(); // Clear any existing timeouts
+            showScreen(3); // Show login form immediately
+        });
+    });
+</script>
+
+<style>
+    .hidden {
+        display: none;
+    }
+    .transition-opacity {
+        transition: opacity 0.5s ease-in-out;
+    }
+</style>
 {% endblock %}

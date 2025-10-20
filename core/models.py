@@ -20,8 +20,9 @@ class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     
     # Personal Info
-    phone_number = models.CharField(max_length=15, unique=True)
-    national_id = models.CharField(max_length=50, unique=True)
+    # In UserProfile model
+    phone_number = models.CharField(max_length=15, unique=True, null=True, blank=True)
+    national_id = models.CharField(max_length=50, unique=True, null=True, blank=True)
     date_of_birth = models.DateField()
     
     # Location

@@ -4,7 +4,6 @@ from django.contrib.auth.models import User
 from .models import UserProfile
 from django.utils import timezone
 
-
 @receiver(post_save, sender=User)
 def manage_user_profile(sender, instance, created, **kwargs):
     """
@@ -14,8 +13,8 @@ def manage_user_profile(sender, instance, created, **kwargs):
         UserProfile.objects.create(
             user=instance,
             current_credit_score=300,
-            phone_number="",  # Placeholder or collect via form
-            national_id="",   # Placeholder or collect via form
+            phone_number=None,  # Placeholder (allows unique constraint)
+            national_id=None,   # Placeholder (allows unique constraint)
             date_of_birth=timezone.now().date(),  # Placeholder
             district="Unknown",
             traditional_authority="Unknown",

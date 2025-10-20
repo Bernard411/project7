@@ -1,3 +1,31 @@
+from .forms import RegistrationForm
+# ============================================
+# REGISTRATION VIEW
+# ============================================
+def registration_view(request):
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        form = RegistrationForm(request.POST)
+        if form.is_valid():
+            username = form.cleaned_data['username']
+            email = form.cleaned_data['email']
+            from django.contrib.auth.models import User
+            if User.objects.filter(username=username).exists():
+                form.add_error('username', 'Username already exists.')
+            elif User.objects.filter(email=email).exists():
+                form.add_error('email', 'Email already exists.')
+            else:
+                user, profile = form.save()
+                messages.success(request, 'Registration successful! You can now log in.')
+                return redirect('login')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = RegistrationForm()
+
+    return render(request, 'registration.html', {'form': form})
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login, logout
