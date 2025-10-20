@@ -1,35 +1,39 @@
 {% extends 'base.html' %}
 {% block title %}Savings History{% endblock %}
 {% block content %}
-<div class="row">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header"><h2>Savings History</h2></div>
-            <div class="card-body">
-                <p><strong>Total Deposits:</strong> MWK {{ total_deposits|floatformat:2 }}</p>
-                <p><strong>Current Balance:</strong> MWK {{ current_balance|floatformat:2 }}</p>
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Amount</th>
-                            <th>Date</th>
-                            <th>Balance After</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for deposit in deposits %}
-                            <tr>
-                                <td>MWK {{ deposit.amount|floatformat:2 }}</td>
-                                <td>{{ deposit.deposit_date|date:"Y-m-d" }}</td>
-                                <td>MWK {{ deposit.balance_after|floatformat:2 }}</td>
-                            </tr>
-                        {% empty %}
-                            <tr><td colspan="3">No deposits yet.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+<div class="card bg-white p-5">
+    <h2 class="text-xl font-bold mb-4">Savings History</h2>
+    
+    <div class="grid grid-cols-2 gap-3 mb-6">
+        <div class="bg-gray-50 p-3 rounded-lg">
+            <p class="text-gray-500 text-sm">Total Deposits</p>
+            <p class="font-bold text-lg">MWK {{ total_deposits|floatformat:2 }}</p>
+        </div>
+        <div class="bg-gray-50 p-3 rounded-lg">
+            <p class="text-gray-500 text-sm">Current Balance</p>
+            <p class="font-bold text-lg">MWK {{ current_balance|floatformat:2 }}</p>
         </div>
     </div>
+
+    <div class="space-y-3">
+        {% for deposit in deposits %}
+        <div class="flex justify-between p-3 border-b">
+            <div>
+                <p class="font-medium">MWK {{ deposit.amount|floatformat:2 }}</p>
+                <p class="text-gray-500 text-sm">{{ deposit.deposit_date|date:"M d, Y" }}</p>
+            </div>
+            <p class="font-medium">MWK {{ deposit.balance_after|floatformat:2 }}</p>
+        </div>
+        {% empty %}
+        <div class="text-center text-gray-500 py-8">
+            <p>No deposits yet</p>
+            <a href="{% url 'add_savings' %}" class="text-red-600 font-medium mt-2 inline-block">Make your first deposit</a>
+        </div>
+        {% endfor %}
+    </div>
 </div>
+
+<a href="{% url 'add_savings' %}" class="w-full bg-red-600 text-white py-3 rounded-lg font-medium text-center block mt-4">
+    Add Savings
+</a>
 {% endblock %}

@@ -1,49 +1,70 @@
 {% extends 'base.html' %}
 {% block title %}Vouch for User{% endblock %}
 {% block content %}
-<div class="row">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header"><h2>Vouch for Someone</h2></div>
-            <div class="card-body">
-                <form method="POST">
-                    {% csrf_token %}
-                    <div class="mb-3">
-                        <label for="username" class="form-label">Username</label>
-                        <input type="text" class="form-control" id="username" name="username" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="trust_level" class="form-label">Trust Level</label>
-                        <select class="form-control" id="trust_level" name="trust_level" required>
-                            <option value="1">Know them slightly</option>
-                            <option value="2">Know them well</option>
-                            <option value="3">Trust completely</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="relationship" class="form-label">Relationship</label>
-                        <input type="text" class="form-control" id="relationship" name="relationship" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100">Submit Vouch</button>
-                </form>
-                <h4>Vouches for You</h4>
-                <ul class="list-group">
-                    {% for vouch in vouches_for_me %}
-                        <li class="list-group-item">{{ vouch.voucher.username }} (Trust: {{ vouch.trust_level }})</li>
-                    {% empty %}
-                        <li class="list-group-item">No vouches yet.</li>
-                    {% endfor %}
-                </ul>
-                <h4>Your Vouches</h4>
-                <ul class="list-group">
-                    {% for vouch in my_vouches %}
-                        <li class="list-group-item">{{ vouch.vouchee.username }} (Trust: {{ vouch.trust_level }})</li>
-                    {% empty %}
-                        <li class="list-group-item">You haven't vouched for anyone.</li>
-                    {% endfor %}
-                </ul>
-            </div>
+<div class="card bg-white p-5 mb-4">
+    <h2 class="text-xl font-bold mb-4">Vouch for Someone</h2>
+    
+    <form method="POST">
+        {% csrf_token %}
+        <div class="mb-4">
+            <label class="block text-gray-700 mb-2">Username</label>
+            <input type="text" name="username" required
+                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                   placeholder="Enter username">
         </div>
+        
+        <div class="mb-4">
+            <label class="block text-gray-700 mb-2">Trust Level</label>
+            <select name="trust_level" required
+                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                <option value="1">Know them slightly</option>
+                <option value="2">Know them well</option>
+                <option value="3">Trust completely</option>
+            </select>
+        </div>
+        
+        <div class="mb-4">
+            <label class="block text-gray-700 mb-2">Relationship</label>
+            <input type="text" name="relationship" required
+                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                   placeholder="e.g., Friend, Colleague, Family">
+        </div>
+        
+        <button type="submit" class="w-full bg-red-600 text-white py-3 rounded-lg font-medium">
+            Submit Vouch
+        </button>
+    </form>
+</div>
+
+<div class="card bg-white p-5 mb-4">
+    <h3 class="font-bold mb-3">Vouches for You</h3>
+    <div class="space-y-2">
+        {% for vouch in vouches_for_me %}
+        <div class="flex justify-between p-3 bg-gray-50 rounded">
+            <p class="font-medium">{{ vouch.voucher.username }}</p>
+            <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
+                Trust: {{ vouch.trust_level }}
+            </span>
+        </div>
+        {% empty %}
+        <p class="text-gray-500 text-center py-2">No vouches yet</p>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="card bg-white p-5">
+    <h3 class="font-bold mb-3">Your Vouches</h3>
+    <div class="space-y-2">
+        {% for vouch in my_vouches %}
+        <div class="flex justify-between p-3 bg-gray-50 rounded">
+            <p class="font-medium">{{ vouch.vouchee.username }}</p>
+            <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+                Trust: {{ vouch.trust_level }}
+            </span>
+        </div>
+        {% empty %}
+        <p class="text-gray-500 text-center py-2">You haven't vouched for anyone</p>
+        {% endfor %}
     </div>
 </div>
 {% endblock %}

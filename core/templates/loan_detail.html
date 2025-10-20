@@ -1,48 +1,66 @@
 {% extends 'base.html' %}
 {% block title %}Loan Details{% endblock %}
 {% block content %}
-<div class="row">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header"><h2>Loan Details</h2></div>
-            <div class="card-body">
-                <p><strong>Amount:</strong> MWK {{ loan.amount|floatformat:2 }}</p>
-                <p><strong>Status:</strong> {{ loan.status|title }}</p>
-                <p><strong>Interest Rate:</strong> {{ loan.interest_rate }}%</p>
-                <p><strong>Applied:</strong> {{ loan.applied_at|date:"Y-m-d" }}</p>
-                <p><strong>Due Date:</strong> {{ loan.due_date|date:"Y-m-d" }}</p>
-                <p><strong>Total Due:</strong> MWK {{ loan.total_amount_due|floatformat:2 }}</p>
-                <p><strong>Amount Paid:</strong> MWK {{ loan.amount_paid|floatformat:2 }}</p>
-                <p><strong>Remaining:</strong> MWK {{ remaining|floatformat:2 }}</p>
-                {% if is_overdue %}
-                    <p class="text-danger"><strong>Overdue by {{ days_overdue }} days</strong></p>
-                {% endif %}
-                <a href="{% url 'make_payment' loan.id %}" class="btn btn-primary">Make Payment</a>
-                <h4>Payment History</h4>
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Amount</th>
-                            <th>Date</th>
-                            <th>Method</th>
-                            <th>On Time</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for payment in payments %}
-                            <tr>
-                                <td>MWK {{ payment.amount|floatformat:2 }}</td>
-                                <td>{{ payment.payment_date|date:"Y-m-d" }}</td>
-                                <td>{{ payment.payment_method|title }}</td>
-                                <td>{{ payment.was_on_time|yesno:"Yes,No" }}</td>
-                            </tr>
-                        {% empty %}
-                            <tr><td colspan="4">No payments yet.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+<div class="card bg-white p-5 mb-4">
+    <h2 class="text-xl font-bold mb-4">Loan Details</h2>
+    
+    <div class="space-y-3 mb-6">
+        <div class="flex justify-between">
+            <p class="text-gray-600">Amount</p>
+            <p class="font-medium">MWK {{ loan.amount|floatformat:2 }}</p>
         </div>
+        <div class="flex justify-between">
+            <p class="text-gray-600">Status</p>
+            <p class="font-medium {% if loan.status == 'paid' %}text-green-600{% elif loan.status == 'active' %}text-blue-600{% else %}text-red-600{% endif %}">
+                {{ loan.status|title }}
+            </p>
+        </div>
+        <div class="flex justify-between">
+            <p class="text-gray-600">Interest Rate</p>
+            <p class="font-medium">{{ loan.interest_rate }}%</p>
+        </div>
+        <div class="flex justify-between">
+            <p class="text-gray-600">Applied</p>
+            <p class="font-medium">{{ loan.applied_at|date:"M d, Y" }}</p>
+        </div>
+        <div class="flex justify-between">
+            <p class="text-gray-600">Due Date</p>
+            <p class="font-medium">{{ loan.due_date|date:"M d, Y" }}</p>
+        </div>
+        <div class="flex justify-between">
+            <p class="text-gray-600">Total Due</p>
+            <p class="font-medium">MWK {{ loan.total_amount_due|floatformat:2 }}</p>
+        </div>
+        <div class="flex justify-between">
+            <p class="text-gray-600">Amount Paid</p>
+            <p class="font-medium">MWK {{ loan.amount_paid|floatformat:2 }}</p>
+        </div>
+        <div class="flex justify-between">
+            <p class="text-gray-600">Remaining</p>
+            <p class="font-medium text-red-600">MWK {{ remaining|floatformat:2 }}</p>
+        </div>
+        {% if is_overdue %}
+        <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+            <p class="text-red-700 font-medium text-center">Overdue by {{ days_overdue }} days</p>
+        </div>
+        {% endif %}
     </div>
-</div>
-{% endblock %}
+
+    <a href="{% url 'make_payment' loan.id %}" class="w-full bg-red-600 text-white py-3 rounded-lg font-medium text-center block mb-6">
+        Make Payment
+    </a>
+
+    <h3 class="font-bold mb-3">Payment History</h3>
+    <div class="space-y-2">
+        {% for payment in payments %}
+        <div class="flex justify-between p-3 bg-gray-50 rounded">
+            <div>
+                <p class="font-medium">MWK {{ payment.amount|floatformat:2 }}</p>
+                <p class="text-gray-500 text-sm">{{ payment.payment_date|date:"M d, Y" }} • {{ payment.payment_method|title }}</p>
+            </div>
+            <span class="{% if payment.was_on_time %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %} px-2 py-1 rounded text-xs self-start">
+                {{ payment.was_on_time|yesno:"On Time,Late" }}
+            </span>
+        </div>
+        {% empty %}
+        <div class

@@ -1,31 +1,99 @@
 {% extends 'base.html' %}
 {% block title %}Score Breakdown{% endblock %}
 {% block content %}
-<div class="row">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header"><h2>Credit Score Breakdown</h2></div>
-            <div class="card-body">
-                <h3>Your Score: {{ current_score }}</h3>
-                <ul class="list-group mb-3">
-                    <li class="list-group-item">Base Score: {{ breakdown.base_score }}</li>
-                    <li class="list-group-item">Payment History (35%): +{{ breakdown.payment_history }}</li>
-                    <li class="list-group-item">Credit Utilization (30%): +{{ breakdown.credit_utilization }}</li>
-                    <li class="list-group-item">Account Age (15%): +{{ breakdown.account_age }} ({{ account_age_days }} days)</li>
-                    <li class="list-group-item">Social Trust (10%): +{{ breakdown.social_trust }} ({{ vouch_count }} vouches)</li>
-                    <li class="list-group-item">Savings (5%): +{{ breakdown.savings }}</li>
-                    <li class="list-group-item">Verification (5%): +{{ breakdown.verification }}</li>
-                </ul>
-                <h4>Tips to Improve Your Score</h4>
-                <ul>
-                    {% for tip in tips %}
-                        <li>{{ tip }}</li>
-                    {% empty %}
-                        <li>Keep up the good work!</li>
-                    {% endfor %}
-                </ul>
+<div class="card bg-white p-5 mb-4">
+    <h2 class="text-xl font-bold mb-4">Credit Score Breakdown</h2>
+    
+    <div class="text-center mb-6">
+        <p class="text-gray-600">Your Score</p>
+        <p class="text-3xl font-bold">{{ current_score }}</p>
+    </div>
+
+    <div class="space-y-4">
+        <div>
+            <div class="flex justify-between mb-1">
+                <span class="text-sm font-medium">Base Score</span>
+                <span class="text-sm font-medium">{{ breakdown.base_score }}</span>
             </div>
         </div>
+        
+        <div>
+            <div class="flex justify-between mb-1">
+                <span class="text-sm font-medium">Payment History (35%)</span>
+                <span class="text-sm font-medium">+{{ breakdown.payment_history }}</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2">
+                <div class="bg-green-600 h-2 rounded-full" style="width: {% widthratio breakdown.payment_history 200 100 %}%"></div>
+            </div>
+        </div>
+        
+        <div>
+            <div class="flex justify-between mb-1">
+                <span class="text-sm font-medium">Credit Utilization (30%)</span>
+                <span class="text-sm font-medium">+{{ breakdown.credit_utilization }}</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2">
+                <div class="bg-blue-600 h-2 rounded-full" style="width: {% widthratio breakdown.credit_utilization 100 100 %}%"></div>
+            </div>
+        </div>
+        
+        <div>
+            <div class="flex justify-between mb-1">
+                <span class="text-sm font-medium">Account Age (15%) - {{ account_age_days }} days</span>
+                <span class="text-sm font-medium">+{{ breakdown.account_age }}</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2">
+                <div class="bg-purple-600 h-2 rounded-full" style="width: {% widthratio breakdown.account_age 80 100 %}%"></div>
+            </div>
+        </div>
+        
+        <div>
+            <div class="flex justify-between mb-1">
+                <span class="text-sm font-medium">Social Trust (10%) - {{ vouch_count }} vouches</span>
+                <span class="text-sm font-medium">+{{ breakdown.social_trust }}</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2">
+                <div class="bg-yellow-600 h-2 rounded-full" style="width: {% widthratio breakdown.social_trust 60 100 %}%"></div>
+            </div>
+        </div>
+        
+        <div>
+            <div class="flex justify-between mb-1">
+                <span class="text-sm font-medium">Savings (5%)</span>
+                <span class="text-sm font-medium">+{{ breakdown.savings }}</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2">
+                <div class="bg-indigo-600 h-2 rounded-full" style="width: {% widthratio breakdown.savings 50 100 %}%"></div>
+            </div>
+        </div>
+        
+        <div>
+            <div class="flex justify-between mb-1">
+                <span class="text-sm font-medium">Verification (5%)</span>
+                <span class="text-sm font-medium">+{{ breakdown.verification }}</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2">
+                <div class="bg-red-600 h-2 rounded-full" style="width: {% widthratio breakdown.verification 30 100 %}%"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card bg-white p-5">
+    <h3 class="font-bold text-gray-800 mb-4">Tips to Improve Your Score</h3>
+    <div class="space-y-3">
+        {% for tip in tips %}
+        <div class="flex items-start">
+            <div class="bg-green-100 p-1 rounded-full mr-3 mt-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+            </div>
+            <p class="text-gray-700">{{ tip }}</p>
+        </div>
+        {% empty %}
+        <p class="text-green-600 text-center">Keep up the good work! Your score is excellent.</p>
+        {% endfor %}
     </div>
 </div>
 {% endblock %}
