@@ -1,13 +1,17 @@
-# ============================================
-# MALAWI CREDIT SCORING SYSTEM
-# Build credit score from scratch based on behavior
-# ============================================
-
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import timedelta
 from decimal import Decimal
+import os
+import logging
+from django.db.models import Sum  # Add this import
+
+logger = logging.getLogger(__name__)
+
+# Helper function to define upload path
+def user_document_path(instance, filename):
+    return f'documents/{instance.user.username}/{filename}'
 
 # ============================================
 # USER PROFILE - Starting Point
@@ -15,12 +19,11 @@ from decimal import Decimal
 
 class UserProfile(models.Model):
     """
-    Basic user information for credit scoring
+    Basic user information for credit scoring with document uploads
     """
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     
     # Personal Info
-    # In UserProfile model
     phone_number = models.CharField(max_length=15, unique=True, null=True, blank=True)
     national_id = models.CharField(max_length=50, unique=True, null=True, blank=True)
     date_of_birth = models.DateField()
@@ -39,17 +42,30 @@ class UserProfile(models.Model):
     ])
     monthly_income = models.DecimalField(max_digits=10, decimal_places=2, null=True)
     
-    # Credit Score (calculated, not entered manually!)
+    # Document Uploads
+    national_id_document = models.FileField(upload_to=user_document_path, null=True, blank=True)
+    proof_of_address = models.FileField(upload_to=user_document_path, null=True, blank=True)
+    income_document = models.FileField(upload_to=user_document_path, null=True, blank=True)
+    
+    # Document Verification Status
+    id_verified = models.BooleanField(default=False)
+    address_verified = models.BooleanField(default=False)
+    income_verified = models.BooleanField(default=False)
+    
+    # Credit Score
     current_credit_score = models.IntegerField(default=300)
     last_score_update = models.DateTimeField(auto_now=True)
     
-    # Account info
+    # Account Info
     account_created = models.DateTimeField(auto_now_add=True)
-    is_verified = models.BooleanField(default=False)  # Phone/ID verified
+    is_verified = models.BooleanField(default=False)  # Overall verification (phone/ID)
     
     def __str__(self):
         return f"{self.user.username} - Score: {self.current_credit_score}"
 
+    def all_documents_verified(self):
+        """Check if all required documents are verified"""
+        return self.id_verified and self.address_verified and self.income_verified
 
 # ============================================
 # MICROLOANS - The Core of the System
@@ -112,7 +128,6 @@ class MicroLoan(models.Model):
     def __str__(self):
         return f"{self.user.username} - MWK {self.amount} ({self.status})"
 
-
 # ============================================
 # LOAN PAYMENTS - Track Every Payment
 # ============================================
@@ -141,7 +156,6 @@ class LoanPayment(models.Model):
     
     def __str__(self):
         return f"Payment MWK {self.amount} - {self.payment_date.date()}"
-
 
 # ============================================
 # MOBILE MONEY VERIFICATION
@@ -173,163 +187,145 @@ class MobileMoneyAccount(models.Model):
     def __str__(self):
         return f"{self.provider} - {self.phone_number}"
 
-
 # ============================================
 # SOCIAL VOUCHING SYSTEM
 # ============================================
 
 class SocialVouch(models.Model):
     """
-    Trust-based system - users vouch for each other
-    Common in African lending (like VSLA groups)
+    Social vouching to boost creditworthiness
     """
     voucher = models.ForeignKey(User, on_delete=models.CASCADE, related_name='vouches_given')
     vouchee = models.ForeignKey(User, on_delete=models.CASCADE, related_name='vouches_received')
-    
-    # Vouch details
-    trust_level = models.IntegerField(choices=[
-        (1, 'Know them slightly'),
-        (2, 'Know them well'),
-        (3, 'Trust completely'),
-    ])
-    relationship = models.CharField(max_length=100)  # friend, family, colleague, etc.
-    
-    # Is voucher willing to co-sign?
+    trust_level = models.IntegerField(choices=[(1, 'Low'), (2, 'Medium'), (3, 'High')])
+    relationship = models.CharField(max_length=100)
     willing_to_cosign = models.BooleanField(default=False)
-    max_cosign_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True)
-    
-    created_at = models.DateTimeField(auto_now_add=True)
+    max_cosign_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     is_active = models.BooleanField(default=True)
-    
-    # If vouchee defaults, voucher's score is affected
     vouchee_defaulted = models.BooleanField(default=False)
-    
-    class Meta:
-        unique_together = ['voucher', 'vouchee']
+    created_at = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):
         return f"{self.voucher.username} vouches for {self.vouchee.username}"
 
-
 # ============================================
-# SAVINGS HISTORY
+# SAVINGS DEPOSITS
 # ============================================
 
 class SavingsDeposit(models.Model):
     """
-    Track savings deposits - shows financial discipline
+    Track savings to improve credit score, including loan deposits and repayment deductions
     """
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    TRANSACTION_TYPES = (
+        ('DEPOSIT', 'Regular Deposit'),
+        ('LOAN_DEPOSIT', 'Loan Deposit'),
+        ('REPAYMENT_DEDUCTION', 'Repayment Deduction'),
+    )
     
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     deposit_date = models.DateTimeField(auto_now_add=True)
-    
-    # Total savings balance
     balance_after = models.DecimalField(max_digits=10, decimal_places=2)
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES, default='DEPOSIT')
+    
+    def save(self, *args, **kwargs):
+        """
+        Update balance_after based on previous transactions
+        """
+        if not self.pk:  # Only for new transactions
+            last_transaction = SavingsDeposit.objects.filter(user=self.user).order_by('-deposit_date').first()
+            current_balance = last_transaction.balance_after if last_transaction else 0
+            self.balance_after = current_balance + self.amount
+            # Log transaction for fraud detection
+            logger.info(f"Savings transaction: {self.user.username}, {self.transaction_type}, MWK {self.amount}")
+        super().save(*args, **kwargs)
     
     def __str__(self):
-        return f"{self.user.username} - MWK {self.amount} saved"
+        return f"{self.user.username} - MWK {self.amount} ({self.transaction_type})"
 
+    @classmethod
+    def get_current_balance(cls, user):
+        """
+        Calculate the current savings balance for a user
+        """
+        return cls.objects.filter(user=user).aggregate(total=Sum('amount'))['total'] or 0
 
 # ============================================
 # CREDIT SCORE CALCULATOR
 # ============================================
 
 class CreditScoreCalculator:
-    """
-    Calculates credit score based on multiple factors
-    Similar to FICO but adapted for Malawi context
-    """
-    
     @staticmethod
     def calculate_score(user):
         """
-        Calculate comprehensive credit score
-        Score range: 300 - 850
+        Calculate score with additional document verification factor
         """
-        score = 300  # Everyone starts here
         profile = user.userprofile
+        score = 300  # Base score
         
-        # =====================================
-        # FACTOR 1: Payment History (35% weight)
-        # =====================================
-        loans = MicroLoan.objects.filter(user=user, status__in=['paid', 'active', 'defaulted'])
-        if loans.exists():
-            total_loans = loans.count()
-            paid_loans = loans.filter(status='paid').count()
-            defaulted_loans = loans.filter(status='defaulted').count()
-            
-            # On-time payment rate
-            payments = LoanPayment.objects.filter(loan__user=user)
+        # FACTOR 1: Payment History (50% weight, max 200 points)
+        loans = MicroLoan.objects.filter(user=user).exclude(status__in=['pending', 'rejected'])
+        payment_score = 0
+        for loan in loans:
+            payments = loan.payments.all()
             if payments.exists():
                 on_time_payments = payments.filter(was_on_time=True).count()
-                on_time_rate = on_time_payments / payments.count()
-                score += int(on_time_rate * 200)  # Up to +200 points
+                total_payments = payments.count()
+                points_per_payment = 200 / total_payments if total_payments > 0 else 0
+                payment_score += on_time_payments * points_per_payment
             
-            # Penalty for defaults
-            score -= (defaulted_loans * 100)  # -100 per default
+            late_payments = payments.filter(was_on_time=False).count()
+            payment_score -= (late_payments * 50)
             
-            # Bonus for fully paid loans
-            score += (paid_loans * 20)  # +20 per paid loan
+            if loan.status == 'defaulted':
+                payment_score -= 100
         
-        # =====================================
+        payment_score = max(0, min(200, payment_score))
+        score += payment_score
+        
         # FACTOR 2: Credit Utilization (30% weight)
-        # =====================================
-        active_loans = MicroLoan.objects.filter(user=user, status='active')
+        active_loans = loans.filter(status='active')
         if active_loans.exists():
             total_borrowed = sum(loan.amount for loan in active_loans)
             max_borrowing_capacity = profile.monthly_income * 3 if profile.monthly_income else 50000
-            
             utilization = float(total_borrowed) / float(max_borrowing_capacity)
             
-            if utilization < 0.3:  # Using less than 30%
+            if utilization < 0.3:
                 score += 100
-            elif utilization < 0.5:  # 30-50%
+            elif utilization < 0.5:
                 score += 50
-            elif utilization < 0.7:  # 50-70%
+            elif utilization < 0.7:
                 score += 20
-            # Over 70% = no bonus
         else:
-            score += 50  # Bonus for no active debt
+            score += 50
         
-        # =====================================
         # FACTOR 3: Length of History (15% weight)
-        # =====================================
         account_age = (timezone.now() - profile.account_created).days
-        
-        if account_age > 365:  # Over 1 year
+        if account_age > 365:
             score += 80
-        elif account_age > 180:  # 6-12 months
+        elif account_age > 180:
             score += 60
-        elif account_age > 90:  # 3-6 months
+        elif account_age > 90:
             score += 40
-        elif account_age > 30:  # 1-3 months
+        elif account_age > 30:
             score += 20
         
-        # =====================================
         # FACTOR 4: Social Trust (10% weight)
-        # =====================================
         vouches = SocialVouch.objects.filter(vouchee=user, is_active=True)
         vouch_count = vouches.count()
-        
         if vouch_count >= 5:
             score += 60
         elif vouch_count >= 3:
             score += 40
         elif vouch_count >= 1:
             score += 20
-        
-        # Penalty if people you vouched for defaulted
         bad_vouches = SocialVouch.objects.filter(voucher=user, vouchee_defaulted=True).count()
         score -= (bad_vouches * 30)
         
-        # =====================================
         # FACTOR 5: Savings Behavior (5% weight)
-        # =====================================
         savings = SavingsDeposit.objects.filter(user=user)
         if savings.exists():
             total_saved = sum(s.amount for s in savings)
-            
             if total_saved > 50000:
                 score += 50
             elif total_saved > 20000:
@@ -337,21 +333,25 @@ class CreditScoreCalculator:
             elif total_saved > 5000:
                 score += 15
         
-        # =====================================
         # FACTOR 6: Account Verification (5% weight)
-        # =====================================
         if profile.is_verified:
             score += 30
-        
         mobile_accounts = MobileMoneyAccount.objects.filter(user=user, is_verified=True)
-        score += (mobile_accounts.count() * 10)  # +10 per verified account
+        score += (mobile_accounts.count() * 10)
         
-        # =====================================
+        # FACTOR 7: Document Verification (5% weight, max 30 points)
+        document_score = 0
+        if profile.id_verified:
+            document_score += 10
+        if profile.address_verified:
+            document_score += 10
+        if profile.income_verified:
+            document_score += 10
+        score += document_score
+        
         # CAP SCORE BETWEEN 300-850
-        # =====================================
         score = max(300, min(850, score))
         
-        # Update user's profile
         profile.current_credit_score = score
         profile.save()
         
@@ -397,21 +397,25 @@ class CreditScoreCalculator:
         else:
             return Decimal('25.0')  # 25% (high risk)
 
-
 # ============================================
 # LOAN APPLICATION APPROVAL
 # ============================================
 
 class LoanApprovalEngine:
-    """
-    Decides whether to approve loan based on credit score
-    """
-    
     @staticmethod
     def evaluate_application(user, requested_amount):
         """
         Evaluate if user can get the loan
         """
+        profile = user.userprofile
+        # Check document verification
+        if not profile.all_documents_verified():
+            return {
+                'approved': False,
+                'reason': 'Please verify all required documents (ID, address, income) before applying.',
+                'score': profile.current_credit_score
+            }
+        
         # Recalculate current score
         score = CreditScoreCalculator.calculate_score(user)
         
@@ -458,6 +462,3 @@ class LoanApprovalEngine:
             'score': score,
             'message': f'Congratulations! Approved at {interest_rate}% interest.'
         }
-
-
-# ================================

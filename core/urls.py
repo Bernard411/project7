@@ -24,6 +24,7 @@ urlpatterns = [
     
     # Social
     path('vouch/', views.vouch_for_user, name='vouch_for_user'),
+    path('profile/', views.profile_view, name='profile'),
     
     # Savings
     path('add-savings/', views.add_savings, name='add_savings'),

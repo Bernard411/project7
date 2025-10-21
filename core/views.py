@@ -13,9 +13,61 @@ from .models import (
     SocialVouch, SavingsDeposit, CreditScoreCalculator, LoanApprovalEngine
 )
 
-# ============================================
-# LOGIN VIEW
-# ============================================
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth import authenticate, login, logout
+from django.contrib import messages
+from django.utils import timezone
+from .loan_ml_predictor import LoanMLPredictor
+from datetime import timedelta
+from decimal import Decimal
+from django.contrib.admin.views.decorators import staff_member_required
+from .models import (
+    UserProfile, MicroLoan, LoanPayment, MobileMoneyAccount,
+    SocialVouch, SavingsDeposit, CreditScoreCalculator, LoanApprovalEngine
+)
+from .forms import RegistrationForm, ProfileForm
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth import authenticate, login, logout
+from django.contrib import messages
+from django.utils import timezone
+from .loan_ml_predictor import LoanMLPredictor
+from datetime import timedelta
+from decimal import Decimal
+from django.contrib.admin.views.decorators import staff_member_required
+from .models import (
+    UserProfile, MicroLoan, LoanPayment, MobileMoneyAccount,
+    SocialVouch, SavingsDeposit, CreditScoreCalculator, LoanApprovalEngine
+)
+from .forms import RegistrationForm, ProfileForm
+
+@login_required
+def profile_view(request):
+    profile = request.user.userprofile
+    if request.method == 'POST':
+        form = ProfileForm(request.POST, request.FILES, instance=profile)
+        if form.is_valid():
+            form.save()
+            CreditScoreCalculator.calculate_score(request.user)
+            messages.success(request, 'Profile updated successfully!')
+            return redirect('profile')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = ProfileForm(instance=profile)
+    
+    savings_balance = SavingsDeposit.get_current_balance(request.user)
+    recent_transactions = SavingsDeposit.objects.filter(user=request.user).order_by('-deposit_date')[:5]
+    return render(request, 'profile.html', {
+        'form': form,
+        'profile': profile,
+        'savings_balance': savings_balance,
+        'recent_transactions': recent_transactions
+    })
+
 
 # ============================================
 # SUPERUSER DASHBOARD VIEW
@@ -228,7 +280,6 @@ def dashboard(request):
 # ============================================
 # LOAN APPLICATION
 # ============================================
-
 @login_required
 def apply_for_loan(request):
     """
@@ -239,13 +290,17 @@ def apply_for_loan(request):
     max_loan = CreditScoreCalculator.get_max_loan_amount(current_score)
     
     if request.method == 'POST':
-        amount = Decimal(request.POST.get('amount'))
-        duration = int(request.POST.get('duration'))  # days
-        
-        # Evaluate application
-        result = LoanApprovalEngine.evaluate_application(request.user, amount)
-        
-        if result['approved']:
+        try:
+            amount = Decimal(request.POST.get('amount'))
+            duration = int(request.POST.get('duration'))  # days
+            
+            # Evaluate application
+            result = LoanApprovalEngine.evaluate_application(request.user, amount)
+            
+            if not result['approved']:
+                messages.error(request, result['reason'])
+                return redirect('apply_for_loan')
+            
             # Create loan
             loan = MicroLoan.objects.create(
                 user=request.user,
@@ -260,10 +315,23 @@ def apply_for_loan(request):
             loan.status = 'active'
             loan.save()
             
+            # Add loan amount to savings
+            SavingsDeposit.objects.create(
+                user=request.user,
+                amount=amount,
+                transaction_type='LOAN_DEPOSIT',
+                balance_after=SavingsDeposit.get_current_balance(request.user) + amount
+            )
+            
+            # Recalculate credit score to reflect savings
+            CreditScoreCalculator.calculate_score(request.user)
+            
             messages.success(request, f"Loan approved! MWK {amount:,.0f} at {result['interest_rate']}% interest.")
             return redirect('dashboard')
-        else:
-            messages.error(request, result['reason'])
+        
+        except ValueError:
+            messages.error(request, 'Invalid input. Please enter a valid loan amount or duration.')
+            return redirect('apply_for_loan')
     
     accounts = MobileMoneyAccount.objects.filter(user=request.user)
     
@@ -271,10 +339,10 @@ def apply_for_loan(request):
         'accounts': accounts,
         'max_loan': max_loan,
         'current_score': current_score,
+        'savings_balance': SavingsDeposit.get_current_balance(request.user)
     }
     
     return render(request, 'apply_loan.html', context)
-
 
 # ============================================
 # CREDIT SCORE BREAKDOWN
@@ -468,47 +536,71 @@ def make_payment(request, loan_id):
     """
     loan = get_object_or_404(MicroLoan, id=loan_id, user=request.user)
     
+    if loan.status not in ['approved', 'active']:
+        messages.error(request, 'This loan cannot be repaid.')
+        return redirect('dashboard')
+    
     if request.method == 'POST':
-        amount = Decimal(request.POST.get('amount'))
-        payment_method = request.POST.get('payment_method')
-        transaction_ref = request.POST.get('transaction_reference')
+        try:
+            amount = Decimal(request.POST.get('amount'))
+            payment_method = request.POST.get('payment_method')
+            transaction_ref = request.POST.get('transaction_reference')
+            
+            # Check savings balance
+            current_balance = SavingsDeposit.get_current_balance(request.user)
+            if amount > current_balance:
+                messages.error(request, 'Insufficient savings balance for repayment.')
+                return redirect('make_payment', loan_id=loan.id)
+            
+            # Calculate if payment is on time
+            days_from_due = (timezone.now().date() - loan.due_date).days
+            was_on_time = days_from_due <= 0
+            
+            # Create payment
+            payment = LoanPayment.objects.create(
+                loan=loan,
+                amount=amount,
+                payment_method=payment_method,
+                transaction_reference=transaction_ref,
+                was_on_time=was_on_time,
+                days_from_due=days_from_due
+            )
+            
+            # Deduct from savings
+            SavingsDeposit.objects.create(
+                user=request.user,
+                amount=-amount,
+                transaction_type='REPAYMENT_DEDUCTION',
+                balance_after=current_balance - amount
+            )
+            
+            # Update loan
+            loan.amount_paid += amount
+            if loan.amount_paid >= loan.total_amount_due:
+                loan.status = 'paid'
+                loan.paid_at = timezone.now()
+                messages.success(request, "Congratulations! Loan fully paid. Your credit score will increase!")
+            else:
+                messages.success(request, f"Payment of MWK {amount:,.0f} received.")
+            
+            loan.save()
+            
+            # Recalculate credit score
+            CreditScoreCalculator.calculate_score(request.user)
+            
+            return redirect('loan_detail', loan_id=loan.id)
         
-        # Calculate if payment is on time
-        days_from_due = (timezone.now().date() - loan.due_date).days
-        was_on_time = days_from_due <= 0
-        
-        # Create payment
-        payment = LoanPayment.objects.create(
-            loan=loan,
-            amount=amount,
-            payment_method=payment_method,
-            transaction_reference=transaction_ref,
-            was_on_time=was_on_time,
-            days_from_due=days_from_due
-        )
-        
-        # Update loan
-        loan.amount_paid += amount
-        
-        if loan.amount_paid >= loan.total_amount_due:
-            loan.status = 'paid'
-            loan.paid_at = timezone.now()
-            messages.success(request, "Congratulations! Loan fully paid. Your credit score will increase!")
-        else:
-            messages.success(request, f"Payment of MWK {amount:,.0f} received.")
-        
-        loan.save()
-        
-        # Recalculate credit score
-        CreditScoreCalculator.calculate_score(request.user)
-        
-        return redirect('loan_detail', loan_id=loan.id)
+        except ValueError:
+            messages.error(request, 'Invalid repayment amount.')
+            return redirect('make_payment', loan_id=loan.id)
     
     remaining = loan.total_amount_due - loan.amount_paid
+    current_balance = SavingsDeposit.get_current_balance(request.user)
     
     context = {
         'loan': loan,
         'remaining': remaining,
+        'current_balance': current_balance
     }
     
     return render(request, 'make_payment.html', context)

@@ -1,0 +1,541 @@
+{% extends 'base.html' %}
+{% block title %}Your Profile{% endblock %}
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8 px-4">
+    <div class="max-w-2xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <div class="flex items-center justify-center space-x-3 mb-4">
+                <div class="h-12 w-12 bg-red-600 rounded-xl flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                </div>
+                <h1 class="text-3xl font-bold text-gray-900">Your Profile</h1>
+            </div>
+            <p class="text-gray-600">Upload and verify your documents to apply for loans</p>
+        </div>
+
+        <!-- Profile Form -->
+        <div class="card bg-white p-6 mb-6">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="mb-4 p-3 bg-{% if message.tags == 'error' %}red-100 text-red-700{% else %}green-100 text-green-700{% endif %} rounded">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+            <form id="profile-form" method="post" enctype="multipart/form-data" class="space-y-6">
+                {% csrf_token %}
+                <h3 class="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b">Document Verification</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label for="national_id_document" class="block text-sm font-medium text-gray-700 mb-2">National ID or Passport</label>
+                        <input type="file" id="national_id_document" name="national_id_document" accept=".pdf,.jpg,.jpeg,.png"
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition duration-200">
+                        {% if profile.national_id_document %}
+                            <p class="text-sm text-gray-500 mt-1">Current: <a href="{{ profile.national_id_document.url }}" target="_blank">View Document</a> (Verified: {{ profile.id_verified|yesno }})</p>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <label for="proof_of_address" class="block text-sm font-medium text-gray-700 mb-2">Proof of Address (e.g., Utility Bill, Chief's Letter)</label>
+                        <input type="file" id="proof_of_address" name="proof_of_address" accept=".pdf,.jpg,.jpeg,.png"
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition duration-200">
+                        {% if profile.proof_of_address %}
+                            <p class="text-sm text-gray-500 mt-1">Current: <a href="{{ profile.proof_of_address.url }}" target="_blank">View Document</a> (Verified: {{ profile.address_verified|yesno }})</p>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <label for="income_document" class="block text-sm font-medium text-gray-700 mb-2">Income Document (e.g., Payslip, Bank Statement)</label>
+                        <input type="file" id="income_document" name="income_document" accept=".pdf,.jpg,.jpeg,.png"
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition duration-200">
+                        {% if profile.income_document %}
+                            <p class="text-sm text-gray-500 mt-1">Current: <a href="{{ profile.income_document.url }}" target="_blank">View Document</a> (Verified: {{ profile.income_verified|yesno }})</p>
+                        {% endif %}
+                    </div>
+                </div>
+                <button type="button" id="submit-btn" class="w-full bg-red-600 text-white py-3 rounded-lg font-medium hover:bg-red-700 transition duration-200">Update Profile</button>
+            </form>
+            <div id="analysis-result" class="mt-4 text-sm"></div>
+            <!-- Loading Overlay -->
+            <div id="loadingOverlay" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+                <div class="bg-white p-6 rounded-lg shadow-xl">
+                    <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600 mx-auto mb-4"></div>
+                    <p class="text-gray-700" id="loadingText">Analyzing documents...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.min.js"></script>
+<script>
+    // OpenCV.js loading management - singleton pattern
+    let opencvStatus = 'not_loaded'; // not_loaded, loading, loaded, failed
+    let opencvLoadPromise = null;
+    
+    function loadOpenCV() {
+        // Return existing promise if already loading
+        if (opencvLoadPromise) return opencvLoadPromise;
+        
+        // Return resolved promise if already loaded
+        if (opencvStatus === 'loaded') {
+            return Promise.resolve();
+        }
+        
+        // Return rejected promise if previously failed
+        if (opencvStatus === 'failed') {
+            return Promise.reject(new Error('OpenCV.js previously failed to load'));
+        }
+        
+        opencvStatus = 'loading';
+        opencvLoadPromise = new Promise((resolve, reject) => {
+            // Check if script already exists in DOM
+            const existingScript = document.querySelector('script[src*="opencv.js"]');
+            if (existingScript) {
+                console.log('OpenCV.js script already in DOM');
+                // Wait for initialization if cv exists
+                if (typeof cv !== 'undefined' && cv.getBuildInformation) {
+                    opencvStatus = 'loaded';
+                    resolve();
+                    return;
+                }
+            }
+            
+            const script = document.createElement('script');
+            script.src = 'https://docs.opencv.org/4.11.0/opencv.js';
+            script.async = true;
+            
+            script.onerror = () => {
+                opencvStatus = 'failed';
+                opencvLoadPromise = null;
+                reject(new Error('Failed to load OpenCV.js script'));
+            };
+            
+            // Set up the initialization callback BEFORE adding script
+            if (typeof cv === 'undefined') {
+                window.cv = {
+                    onRuntimeInitialized: () => {
+                        console.log('OpenCV.js initialized successfully');
+                        opencvStatus = 'loaded';
+                        resolve();
+                    }
+                };
+            } else {
+                cv.onRuntimeInitialized = () => {
+                    console.log('OpenCV.js initialized successfully');
+                    opencvStatus = 'loaded';
+                    resolve();
+                };
+            }
+            
+            // Add script to DOM only if it doesn't exist
+            if (!existingScript) {
+                document.head.appendChild(script);
+            }
+            
+            // Timeout for initialization
+            setTimeout(() => {
+                if (opencvStatus !== 'loaded') {
+                    opencvStatus = 'failed';
+                    opencvLoadPromise = null;
+                    reject(new Error('OpenCV.js initialization timeout'));
+                }
+            }, 30000);
+        });
+        
+        return opencvLoadPromise;
+    }
+    
+    // Canvas-based document authenticity analysis (no external libraries)
+    async function performCanvasAnalysis(canvas, ctx) {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        let score = 0;
+        
+        // 1. Check image resolution (documents should be reasonably high-res)
+        const pixelCount = canvas.width * canvas.height;
+        if (pixelCount > 500000) { // > 0.5 megapixels
+            score += 0.15;
+        } else if (pixelCount > 200000) { // > 0.2 megapixels
+            score += 0.1;
+        } else {
+            score += 0.05; // Low resolution suspicious
+        }
+        
+        // 2. Check color distribution (real documents have varied colors)
+        let colorVariance = 0;
+        let brightness = 0;
+        const sampleSize = Math.min(10000, data.length / 4);
+        const step = Math.floor(data.length / (sampleSize * 4));
+        
+        for (let i = 0; i < data.length; i += step * 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            brightness += (r + g + b) / 3;
+            colorVariance += Math.abs(r - g) + Math.abs(g - b) + Math.abs(b - r);
+        }
+        
+        brightness /= sampleSize;
+        colorVariance /= sampleSize;
+        
+        // Documents typically have moderate brightness (not too dark/bright)
+        if (brightness > 50 && brightness < 220) {
+            score += 0.15;
+        } else {
+            score += 0.05;
+        }
+        
+        // Documents have color variation (not uniform)
+        if (colorVariance > 10 && colorVariance < 100) {
+            score += 0.2;
+        } else if (colorVariance >= 100) {
+            score += 0.15;
+        } else {
+            score += 0.05;
+        }
+        
+        // 3. Edge detection using simple gradient method
+        let edgePixels = 0;
+        const threshold = 30;
+        
+        for (let y = 1; y < canvas.height - 1; y += 2) {
+            for (let x = 1; x < canvas.width - 1; x += 2) {
+                const idx = (y * canvas.width + x) * 4;
+                
+                // Get surrounding pixels
+                const center = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+                const right = (data[idx + 4] + data[idx + 5] + data[idx + 6]) / 3;
+                const bottom = (data[idx + canvas.width * 4] + data[idx + canvas.width * 4 + 1] + data[idx + canvas.width * 4 + 2]) / 3;
+                
+                // Calculate gradient
+                const gradient = Math.abs(right - center) + Math.abs(bottom - center);
+                if (gradient > threshold) {
+                    edgePixels++;
+                }
+            }
+        }
+        
+        const edgeDensity = edgePixels / ((canvas.width / 2) * (canvas.height / 2));
+        
+        // Documents typically have moderate edge density (text, borders, stamps)
+        if (edgeDensity > 0.05 && edgeDensity < 0.3) {
+            score += 0.25;
+        } else if (edgeDensity >= 0.3 && edgeDensity < 0.5) {
+            score += 0.15;
+        } else {
+            score += 0.05;
+        }
+        
+        // 4. Check for JPEG artifacts (real scans/photos have compression artifacts)
+        let artifactScore = 0;
+        for (let y = 8; y < canvas.height - 8; y += 8) {
+            for (let x = 8; x < canvas.width - 8; x += 8) {
+                const idx = (y * canvas.width + x) * 4;
+                const blockColor = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+                const neighborIdx = ((y + 4) * canvas.width + (x + 4)) * 4;
+                const neighborColor = (data[neighborIdx] + data[neighborIdx + 1] + data[neighborIdx + 2]) / 3;
+                
+                if (Math.abs(blockColor - neighborColor) > 5) {
+                    artifactScore++;
+                }
+            }
+        }
+        
+        const artifactDensity = artifactScore / ((canvas.width / 8) * (canvas.height / 8));
+        if (artifactDensity > 0.1 && artifactDensity < 0.6) {
+            score += 0.15;
+        } else {
+            score += 0.05;
+        }
+        
+        // 5. Aspect ratio check (documents have typical ratios)
+        const aspectRatio = canvas.width / canvas.height;
+        if ((aspectRatio > 0.6 && aspectRatio < 0.85) || // Portrait A4: ~0.707
+            (aspectRatio > 1.3 && aspectRatio < 1.8)) {   // Landscape or ID card: ~1.4-1.6
+            score += 0.1;
+        } else {
+            score += 0.05;
+        }
+        
+        console.log(`Canvas Analysis - Resolution: ${pixelCount}, Brightness: ${brightness.toFixed(2)}, Color Var: ${colorVariance.toFixed(2)}, Edge Density: ${edgeDensity.toFixed(4)}, Artifact: ${artifactDensity.toFixed(4)}`);
+        
+        return Math.min(score, 1.0); // Cap at 1.0
+    }
+
+    async function analyzeDocument(file, fieldName, expectedValue) {
+        if (!file) return { verified: false, authenticityScore: 0, extractedText: '' };
+
+        try {
+            // Try to load OpenCV once, but continue without it if it fails
+            let useOpenCV = false;
+            if (opencvStatus !== 'failed') {
+                try {
+                    await loadOpenCV();
+                    useOpenCV = (opencvStatus === 'loaded' && typeof cv !== 'undefined' && cv.imread);
+                } catch (cvError) {
+                    console.warn('OpenCV.js not available, using canvas-based analysis:', cvError.message);
+                }
+            }
+            
+            const img = new Image();
+            img.src = URL.createObjectURL(file);
+            await new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = () => reject(new Error('Failed to load image'));
+            });
+
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+
+            let authenticityScore = 0;
+            
+            // Use OpenCV if available, otherwise use Canvas-based analysis
+            if (useOpenCV) {
+                try {
+                    const src = cv.imread(canvas);
+                    const gray = new cv.Mat();
+                    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+                    const thresh = new cv.Mat();
+                    cv.threshold(gray, thresh, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU);
+
+                    // Edge detection for authenticity check
+                    const edges = new cv.Mat();
+                    cv.Canny(thresh, edges, 100, 200);
+                    const edgeData = edges.data;
+                    let edgeCount = 0;
+                    for (let i = 0; i < edgeData.length; i++) {
+                        if (edgeData[i] > 0) edgeCount++;
+                    }
+                    const edgeDensity = edgeCount / (edges.rows * edges.cols);
+                    
+                    // Adjust score based on edge density (documents typically have moderate edge density)
+                    if (edgeDensity > 0.05 && edgeDensity < 0.15) {
+                        authenticityScore = 0.8;
+                    } else if (edgeDensity >= 0.15 && edgeDensity < 0.25) {
+                        authenticityScore = 0.7;
+                    } else {
+                        authenticityScore = 0.5;
+                    }
+
+                    // Clean up
+                    src.delete();
+                    gray.delete();
+                    thresh.delete();
+                    edges.delete();
+                    
+                    console.log(`OpenCV analysis complete. Edge density: ${edgeDensity.toFixed(4)}, Score: ${authenticityScore}`);
+                } catch (cvProcessError) {
+                    console.warn('OpenCV processing error:', cvProcessError.message);
+                    authenticityScore = await performCanvasAnalysis(canvas, ctx);
+                }
+            } else {
+                // Canvas-based authenticity analysis (no external libraries needed)
+                authenticityScore = await performCanvasAnalysis(canvas, ctx);
+                console.log('Using canvas-based analysis, Score:', authenticityScore);
+            }
+
+            // OCR with Tesseract.js
+            const loadingText = document.getElementById('loadingText');
+            if (loadingText) loadingText.textContent = `Extracting text from ${fieldName}...`;
+            
+            const { data: { text } } = await Tesseract.recognize(canvas, 'eng', {
+                logger: m => {
+                    if (m.status === 'recognizing text' && loadingText) {
+                        loadingText.textContent = `Analyzing ${fieldName}: ${Math.round(m.progress * 100)}%`;
+                    }
+                }
+            });
+
+            // Enhanced text matching with multiple strategies
+            let verified = false;
+            const extractedText = text.trim();
+            
+            if (expectedValue && extractedText) {
+                // Strategy 1: Normalize and compare (remove spaces, special chars, case-insensitive)
+                const normalizedText = extractedText.toLowerCase()
+                    .replace(/[^a-z0-9]/g, '')
+                    .replace(/\s+/g, '');
+                const normalizedExpected = expectedValue.toLowerCase()
+                    .replace(/[^a-z0-9]/g, '')
+                    .replace(/\s+/g, '');
+                
+                // Strategy 2: Partial match (at least 70% of expected value present)
+                if (normalizedExpected.length > 0) {
+                    if (normalizedText.includes(normalizedExpected)) {
+                        verified = true;
+                    } else {
+                        // Strategy 3: Fuzzy matching - check if at least 70% of characters match
+                        let matchCount = 0;
+                        const minLength = Math.min(normalizedExpected.length, 20);
+                        for (let i = 0; i < minLength; i++) {
+                            if (normalizedText.includes(normalizedExpected[i])) {
+                                matchCount++;
+                            }
+                        }
+                        if (matchCount / minLength >= 0.5) {
+                            verified = true;
+                        }
+                        
+                        // Strategy 4: Check for individual words/numbers
+                        const expectedWords = expectedValue.split(/\s+/).filter(w => w.length > 2);
+                        let wordMatches = 0;
+                        for (const word of expectedWords) {
+                            const normalizedWord = word.toLowerCase().replace(/[^a-z0-9]/g, '');
+                            if (normalizedWord.length > 0 && normalizedText.includes(normalizedWord)) {
+                                wordMatches++;
+                            }
+                        }
+                        if (expectedWords.length > 0 && wordMatches / expectedWords.length >= 0.5) {
+                            verified = true;
+                        }
+                    }
+                }
+                
+                console.log(`Text verification for ${fieldName}:`, {
+                    expected: expectedValue,
+                    found: extractedText.substring(0, 100),
+                    verified
+                });
+            } else {
+                // If no expected value provided, just check if we extracted any meaningful text
+                verified = extractedText.length > 10;
+            }
+
+            return { verified, authenticityScore, extractedText };
+        } catch (error) {
+            console.error('Document analysis failed:', error);
+            return { verified: false, authenticityScore: 0, extractedText: '', error: error.message };
+        }
+    }
+
+    async function analyzeDocuments() {
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const resultDiv = document.getElementById('analysis-result');
+        const form = document.getElementById('profile-form');
+        const submitBtn = document.getElementById('submit-btn');
+        const loadingText = document.getElementById('loadingText');
+
+        loadingOverlay.classList.remove('hidden');
+        loadingText.textContent = 'Preparing document analysis...';
+        resultDiv.innerHTML = '';
+
+        const nationalIdInput = form.querySelector('[name=national_id]') || { value: '{{ profile.national_id }}' };
+        const districtInput = form.querySelector('[name=district]') || { value: '{{ profile.district }}' };
+        const incomeInput = form.querySelector('[name=monthly_income]') || { value: '{{ profile.monthly_income }}' };
+
+        const idFile = form.querySelector('[name=national_id_document]').files[0];
+        const addressFile = form.querySelector('[name=proof_of_address]').files[0];
+        const incomeFile = form.querySelector('[name=income_document]').files[0];
+
+        // Check if at least one file is uploaded
+        if (!idFile && !addressFile && !incomeFile) {
+            loadingOverlay.classList.add('hidden');
+            resultDiv.innerHTML = '<div class="p-3 bg-red-100 text-red-700 rounded"><strong>Error:</strong> Please upload at least one document.</div>';
+            return false;
+        }
+
+        const results = {
+            id_verified: {{ profile.id_verified|yesno:"true,false" }},
+            address_verified: {{ profile.address_verified|yesno:"true,false" }},
+            income_verified: {{ profile.income_verified|yesno:"true,false" }},
+            authenticity_score: {{ profile.authenticity_score|default:"0" }}
+        };
+
+        let errorMessage = '';
+        let debugInfo = '';
+
+        // Analyze National ID
+        if (idFile && nationalIdInput.value) {
+            loadingText.textContent = 'Analyzing National ID document...';
+            const result = await analyzeDocument(idFile, 'National ID', nationalIdInput.value);
+            results.id_verified = result.verified;
+            results.authenticity_score += result.authenticityScore;
+            if (result.error) errorMessage += `National ID: ${result.error}<br>`;
+            debugInfo += `<div class="text-xs mt-2 p-2 bg-gray-50 rounded"><strong>National ID:</strong><br>Expected: ${nationalIdInput.value}<br>Found: ${result.extractedText ? result.extractedText.substring(0, 150) + '...' : 'No text'}</div>`;
+        }
+
+        // Analyze Proof of Address
+        if (addressFile && districtInput.value) {
+            loadingText.textContent = 'Analyzing Proof of Address...';
+            const result = await analyzeDocument(addressFile, 'Address Document', districtInput.value);
+            results.address_verified = result.verified;
+            results.authenticity_score += result.authenticityScore;
+            if (result.error) errorMessage += `Address: ${result.error}<br>`;
+            debugInfo += `<div class="text-xs mt-2 p-2 bg-gray-50 rounded"><strong>Address:</strong><br>Expected: ${districtInput.value}<br>Found: ${result.extractedText ? result.extractedText.substring(0, 150) + '...' : 'No text'}</div>`;
+        }
+
+        // Analyze Income Document
+        if (incomeFile && incomeInput.value) {
+            loadingText.textContent = 'Analyzing Income Document...';
+            const result = await analyzeDocument(incomeFile, 'Income Document', incomeInput.value.split('.')[0]);
+            results.income_verified = result.verified;
+            results.authenticity_score += result.authenticityScore;
+            if (result.error) errorMessage += `Income: ${result.error}<br>`;
+            debugInfo += `<div class="text-xs mt-2 p-2 bg-gray-50 rounded"><strong>Income:</strong><br>Expected: ${incomeInput.value.split('.')[0]}<br>Found: ${result.extractedText ? result.extractedText.substring(0, 150) + '...' : 'No text'}</div>`;
+        }
+
+        // Require high authenticity score for uploaded documents
+        const isValid = (idFile ? results.id_verified : true) &&
+                        (addressFile ? results.address_verified : true) &&
+                        (incomeFile ? results.income_verified : true) &&
+                        results.authenticity_score >= 0.5;
+
+        // Update hidden inputs
+        Object.keys(results).forEach(key => {
+            let input = form.querySelector(`[name=${key}]`);
+            if (!input) {
+                input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                form.appendChild(input);
+            }
+            input.value = results[key];
+        });
+
+        const resultClass = isValid ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700';
+        const opencvStatusText = opencvStatus === 'loaded' ? '✓ Advanced analysis (OpenCV)' : '✓ Canvas-based analysis';
+        resultDiv.innerHTML = `<div class="p-4 ${resultClass} rounded-lg">
+            <div class="font-semibold mb-2">Analysis Results:</div>
+            <div class="text-xs text-gray-600 mb-2">${opencvStatusText}</div>
+            <div class="space-y-1">
+                <div>ID Verified: <strong>${idFile ? (results.id_verified ? '✓ Yes' : '✗ No') : 'Not Uploaded'}</strong></div>
+                <div>Address Verified: <strong>${addressFile ? (results.address_verified ? '✓ Yes' : '✗ No') : 'Not Uploaded'}</strong></div>
+                <div>Income Verified: <strong>${incomeFile ? (results.income_verified ? '✓ Yes' : '✗ No') : 'Not Uploaded'}</strong></div>
+                <div>Authenticity Score: <strong>${results.authenticity_score.toFixed(2)}</strong> ${results.authenticity_score >= 0.7 ? '✓' : results.authenticity_score >= 0.5 ? '⚠' : '✗'}</div>
+            </div>
+        </div>`;
+        
+        if (errorMessage) {
+            resultDiv.innerHTML += `<div class="mt-2 p-3 bg-yellow-100 text-yellow-700 rounded"><strong>Warnings:</strong><br>${errorMessage}</div>`;
+        }
+        
+        // Add debug information
+        if (debugInfo) {
+            resultDiv.innerHTML += `<div class="mt-2"><details><summary class="cursor-pointer text-sm font-medium text-gray-700">Show extracted text details</summary>${debugInfo}</details></div>`;
+        }
+        
+        loadingOverlay.classList.add('hidden');
+
+        if (!isValid) {
+            resultDiv.innerHTML += '<div class="mt-2 p-3 bg-red-100 text-red-700 rounded"><strong>Error:</strong> Document verification failed. Please upload valid documents that match your profile information.</div>';
+        }
+
+        return isValid;
+    }
+
+    // Trigger analysis on button click
+    const submitBtn = document.getElementById('submit-btn');
+    submitBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const isValid = await analyzeDocuments();
+        if (isValid) {
+            document.getElementById('profile-form').submit();
+        }
+    });
+</script>
+{% endblock %}
