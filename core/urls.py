@@ -6,7 +6,7 @@ urlpatterns = [
     path('dashboard', views.dashboard, name='dashboard'),
 
     # Superuser Dashboard
-    path('admin-dashboard/', views.superuser_dashboard, name='superuser_dashboard'),
+    path('dashboard/', views.superuser_dashboard, name='superuser_dashboard'),
     
     # Authentication
     path('', views.login_view, name='login'),
